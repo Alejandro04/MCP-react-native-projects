@@ -4,28 +4,28 @@ import { z } from "zod";
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 
-// ============ CONFIGURACIÓN DE SEGURIDAD ============
-// Normaliza la ruta para Windows
-const ALLOWED_BASE_PATH = path.resolve("");
+// ============ SECURITY CONTEXT ============
+// Normalized base path for allowed file operations
+const ALLOWED_BASE_PATH = ""
 
 console.error(`[DEBUG] ALLOWED_BASE_PATH: ${ALLOWED_BASE_PATH}`);
 
-// Función para validar que la ruta está dentro del directorio permitido
+// Function to validate that a given path is within the allowed base path
 function validatePath(filePath: string): { valid: boolean; error?: string; fullPath?: string } {
   try {
-    // Normaliza ambas rutas para comparación consistente
+    // Normalize both paths for consistent comparison
     const fullPath = path.resolve(path.join(ALLOWED_BASE_PATH, filePath));
     const allowedResolved = path.resolve(ALLOWED_BASE_PATH);
     
-    console.error(`[DEBUG] Validando: filePath="${filePath}"`);
+    console.error(`[DEBUG] Validating path: filePath="${filePath}"`);
     console.error(`[DEBUG] fullPath="${fullPath}"`);
     console.error(`[DEBUG] allowedResolved="${allowedResolved}"`);
     
-    // Verificar que la ruta resuelta está dentro del directorio permitido
+    // Verified that the fullPath starts with the allowed base path
     if (!fullPath.startsWith(allowedResolved)) {
       return {
         valid: false,
-        error: `Acceso denegado. Solo se permite manipular archivos dentro de: ${ALLOWED_BASE_PATH}`
+        error: `Denny access: ${ALLOWED_BASE_PATH}`
       };
     }
 
@@ -36,12 +36,12 @@ function validatePath(filePath: string): { valid: boolean; error?: string; fullP
 
     return {
       valid: false,
-      error: `Ruta inválida: ${message}`,
+      error: `Invalid path: ${message}`,
     }
   }
 }
 
-// Crear una instancia del servidor
+// Create a server instance
 const server = new McpServer({
   name: "demoapp",
   version: "1.0.0",
@@ -49,24 +49,24 @@ const server = new McpServer({
 
 // ============ TOOL 1: Schedule Notification ============
 const notificationSchema = z.object({
-  title: z.string().describe("Título de la notificación"),
-  body: z.string().describe("Cuerpo del mensaje de la notificación"),
-  triggerTime: z.string().describe("Tiempo en el que se disparará la notificación (formato ISO 8601, ej: '2024-01-20T10:00:00Z')"),
-  repeatInterval: z.enum(["none", "daily", "weekly", "monthly"]).optional().default("none").describe("Intervalo de repetición de la notificación"),
-  data: z.record(z.string(), z.any()).optional().describe("Datos adicionales para pasar con la notificación")
+  title: z.string().describe("Notification title"),
+  body: z.string().describe("Notification body"),
+  triggerTime: z.string().describe("Time when the notification will be triggered (ISO 8601 format, e.g., '2024-01-20T10:00:00Z')"),
+  repeatInterval: z.enum(["none", "daily", "weekly", "monthly"]).optional().default("none").describe("Notification repeat interval"),
+  data: z.record(z.string(), z.any()).optional().describe("Additional data to pass with the notification")
 });
 
 server.registerTool(
   "schedule_notification",
   {
-    description: "Programa una notificación local para la aplicación React Native. Útil para recordatorios, alertas y mensajes programados.",
+    description: "Schedule a local notification for the React Native app. Useful for reminders, alerts, and scheduled messages.",
     inputSchema: notificationSchema
   },
   async ({ title, body, triggerTime, repeatInterval = "none", data = {} }) => {
     try {
       const triggerDate = new Date(triggerTime);
       if (Number.isNaN(triggerDate.getTime())) {
-        throw new TypeError("Formato de fecha inválido");
+        throw new TypeError("Invalid date format");
       }
 
       const notification = {
@@ -87,13 +87,13 @@ server.registerTool(
             text: JSON.stringify({
               success: true,
               notification,
-              message: `Notificación "${title}" programada para ${triggerDate.toLocaleString()}`
+              message: `Notification "${title}" scheduled for ${triggerDate.toLocaleString()}`
             }, null, 2)
           }
         ]
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return {
         content: [
           {
@@ -112,13 +112,13 @@ server.registerTool(
 
 // ============ TOOL 2: Read File ============
 const readFileSchema = z.object({
-  filePath: z.string().describe("Ruta del archivo a leer (relativa a tu proyecto Expo)")
+  filePath: z.string().describe("Path to the file to read (relative to your Expo project)")
 });
 
 server.registerTool(
   "read_file",
   {
-    description: "Lee el contenido de un archivo en tu proyecto Expo",
+    description: "Read the contents of a file in your Expo project",
     inputSchema: readFileSchema
   },
   async ({ filePath }) => {
@@ -131,7 +131,7 @@ server.registerTool(
               type: "text",
               text: JSON.stringify({
                 success: false,
-                error: validation.error ?? "Ruta inválida"
+                error: validation.error ?? "Invalid path"
               }, null, 2)
             }
           ],
@@ -174,15 +174,15 @@ server.registerTool(
 
 // ============ TOOL 3: Write File ============
 const writeFileSchema = z.object({
-  filePath: z.string().describe("Ruta del archivo a escribir (relativa a tu proyecto Expo)"),
-  content: z.string().describe("Contenido a escribir en el archivo"),
-  createDirectories: z.boolean().optional().default(true).describe("Crear directorios si no existen")
+  filePath: z.string().describe("Path to the file to write (relative to your Expo project)"),
+  content: z.string().describe("Content to write to the file"),
+  createDirectories: z.boolean().optional().default(true).describe("Create directories if they do not exist")
 });
 
 server.registerTool(
   "write_file",
   {
-    description: "Escribe o modifica un archivo en tu proyecto Expo. Si el archivo no existe, lo crea.",
+    description: "Write or modify a file in your Expo project. If the file does not exist, it will be created.",
     inputSchema: writeFileSchema
   },
   async ({ filePath, content, createDirectories = true }) => {
@@ -219,14 +219,14 @@ server.registerTool(
             text: JSON.stringify({
               success: true,
               filePath,
-              message: `Archivo creado/actualizado correctamente`,
+              message: `File created/updated successfully. Size: ${content.length} bytes`,
               size: content.length
             }, null, 2)
           }
         ]
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return {
         content: [
           {
@@ -245,14 +245,14 @@ server.registerTool(
 
 // ============ TOOL 4: List Files ============
 const listFilesSchema = z.object({
-  dirPath: z.string().optional().default(".").describe("Ruta del directorio a listar (relativa a tu proyecto Expo)"),
-  recursive: z.boolean().optional().default(false).describe("Listar directorios recursivamente")
+  dirPath: z.string().optional().default(".").describe("Path to the directory to list (relative to your Expo project)"),
+  recursive: z.boolean().optional().default(false).describe("List directories recursively")
 });
 
 server.registerTool(
   "list_files",
   {
-    description: "Lista archivos en un directorio del proyecto Expo",
+    description: "List files in a directory of the Expo project. Can list recursively if needed.",
     inputSchema: listFilesSchema
   },
   async ({ dirPath = ".", recursive = false }) => {
@@ -346,14 +346,14 @@ server.registerTool(
 
 // ============ TOOL 5: Execute Command ============
 const executeCommandSchema = z.object({
-  command: z.string().describe("Comando a ejecutar en la terminal (ej: npm install, npx expo update, etc.)"),
-  cwd: z.string().optional().describe("Directorio donde ejecutar el comando (relativo a tu proyecto Expo)")
+  command: z.string().describe("Command to execute in the terminal (e.g., npm install, npx expo update, etc.)"),
+  cwd: z.string().optional().describe("Directory to execute the command in (relative to your Expo project)")
 });
 
 server.registerTool(
   "execute_command",
   {
-    description: "Ejecuta un comando en la terminal dentro de tu proyecto Expo. Útil para instalar paquetes o actualizar código.",
+    description: "Execute a command in the terminal within your Expo project. Useful for installing packages or updating code.",
     inputSchema: executeCommandSchema
   },
   async ({ command, cwd }) => {
@@ -400,7 +400,7 @@ server.registerTool(
         ]
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return {
         content: [
           {
@@ -421,7 +421,7 @@ server.registerTool(
 server.registerTool(
   "get_app_config",
   {
-    description: "Obtiene la configuración actual del proyecto Expo (app.json)",
+    description: "Get the current configuration of the Expo project (app.json)",
     inputSchema: z.object({})
   },
   async () => {
@@ -442,7 +442,7 @@ server.registerTool(
         ]
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return {
         content: [
           {
@@ -459,9 +459,9 @@ server.registerTool(
   }
 );
 
-// Establecer el transporte y conectar el servidor
+// Set up the transport and connect the server
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
-console.error(`MCP Server 'demoapp' iniciado y escuchando en stdio`);
-console.error(`✅ Directorio permitido: ${ALLOWED_BASE_PATH}`);
+console.error(`MCP Server 'demoapp' started and listening on stdio`);
+console.error(`✅ Allowed directory path: ${ALLOWED_BASE_PATH}`);
